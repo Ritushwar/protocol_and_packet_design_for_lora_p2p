@@ -23,12 +23,6 @@ void send_msg(std::string&);
 std::string get_msg();
 void send_packet(const lora_packet_struct&);
 int get_packet_size();
-lora_packet_struct get_packet();
+lora_packet_struct get_packet(int);
 bool is_packet_available();
-// void sendRTS(uint8_t *, int);
-// void receivePKT(int, int);
-// void sendDATA(uint8_t *,  uint8_t *);
-// void sendPKT(uint8_t *);
-// void sendACK(uint8_t *);
-
 #endif

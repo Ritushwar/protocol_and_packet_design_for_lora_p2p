@@ -1,5 +1,6 @@
 #include "setup_lora.h"
 #include <LoRa.h>
+#include "lora_packet.h"
 // LoRa Modes
 #define RX_MODE 0
 #define TX_MODE 1
@@ -71,20 +72,29 @@ std::string get_msg(){
   return "";
 }
 
+// send packet over lora modules
 void send_packet(const lora_packet_struct &pkt){
-  // lora packet is send from here.
   // disable interrupt
   detachInterrupt(digitalPinToInterrupt(dio0));
   mode = TX_MODE;
   setMode(mode);
   delay(50);
 
-  Serial.println("Before Sending.");
-  Serial.print("Size of lora packet: ");
-  Serial.println(8 + pkt.PAY_LEN);
+  size_t packet_size;
+  if(pkt.PKT_TYPE == PKT_DATA){
+    packet_size = 8 + pkt.PAY_LEN;
+  }else{
+    packet_size = 8;
+  }
+
+  
+  Serial.print("Sending PKT_TYPE=0x");
+  Serial.print(pkt.PKT_TYPE, HEX);
+  Serial.print("  bytes=");
+  Serial.println(packet_size);
 
   LoRa.beginPacket();
-  LoRa.write((uint8_t*)&pkt, 8 + pkt.PAY_LEN);
+  LoRa.write((uint8_t*)&pkt, packet_size);
 
   int result = LoRa.endPacket(false);  // false blocking TX
 
@@ -99,6 +109,7 @@ void send_packet(const lora_packet_struct &pkt){
   Serial.println("Packet Sent.");
 }
 
+// get the total size of packet in bytes availabe at lora
 int get_packet_size(){
 
   noInterrupts();
@@ -113,13 +124,14 @@ int get_packet_size(){
   return _last_pkt_size;
 }
 
-lora_packet_struct get_packet(){
+// read the packet of size packet_size and pass
+lora_packet_struct get_packet(int packet_size){
 
   lora_packet_struct pkt;
   memset(&pkt, 0, sizeof(pkt));
 
   int i = 0;
-  while (LoRa.available() && i < (int)sizeof(lora_packet_struct))
+  while (LoRa.available() && i < packet_size)
   {
     ((uint8_t*)&pkt)[i++] = LoRa.read();
   }

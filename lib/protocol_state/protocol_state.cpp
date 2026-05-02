@@ -91,12 +91,15 @@ void send_ack() {
 void serial_update(){
     if(serialIO_available() && !channel_busy && protoState == IDLE){
         msg = serialIO_read();
+        encrypt_msg(msg);
         channel_busy = true;
         protoState = SEND_RTS;
     }
 
     if(msg_r.length() > 0){
-        serialIO_print("Received: " + msg_r);
+        serialIO_print("Received before decryption: " + msg_r);
+        decrypt_msg(msg_r);
+        serialIO_print("Received after decryption " + msg_r);
         msg_r.clear();
     }
     return;
@@ -109,7 +112,7 @@ void lora_update(){
     if(pkt_size < 8){
         Serial.print("Invalid packet size of: ");
         Serial.println(pkt_size);
-        lora_packet_struct random_pkt = get_packet();    // discard the packet
+        lora_packet_struct random_pkt = get_packet(pkt_size);    // discard the packet
         return;
     }
     else{
@@ -117,7 +120,7 @@ void lora_update(){
        Serial.println(pkt_size);
     }
 
-    lora_packet_struct pkt = get_packet();
+    lora_packet_struct pkt = get_packet(pkt_size);
     
     // check if the packet is addressed to me
     if(!is_for_me(pkt.USER_ID_R, pkt.NODE_ID_R)){

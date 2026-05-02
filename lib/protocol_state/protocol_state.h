@@ -1,12 +1,15 @@
 #ifndef PROTOCOL_STATE_H
 #define PROTOCOL_STATE_H
 
+// today change
+// 1. optimize the sending packet over lora
 
 #include <stdint.h>
 #include <string>
 #include "serial_io.h"
 #include "setup_lora.h"
 #include "lora_packet.h"
+#include "encryption.h"
 
 extern uint8_t msg_id;
 extern uint8_t msg_id_r;

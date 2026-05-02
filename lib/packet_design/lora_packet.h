@@ -14,6 +14,29 @@
 // #define PAY_LEN     7
 // #define CRC_MSB     8
 // #define CRC_LSB     9
+
+// today change
+// set external variable
+// payload size suitable for AES
+
+// packets types
+extern const uint8_t PKT_RTS;
+extern const uint8_t PKT_CTS;
+extern const uint8_t PKT_DATA;
+extern const uint8_t PKT_ACK;
+extern const uint8_t PKT_HEADER;
+
+
+// flags
+extern const uint8_t FLAG_RTS;
+extern const uint8_t FLAG_CTS;
+extern const uint8_t FLAG_SENT;
+extern const uint8_t FLAG_DEL;
+extern const uint8_t FLAG_ERROR;
+extern const uint8_t FLAG_DATA;
+extern const uint8_t FLAG_ACK;
+
+
 struct lora_packet_struct{
     uint8_t PKT_TYPE;
     uint8_t FLAGS;
@@ -23,7 +46,7 @@ struct lora_packet_struct{
     uint8_t NODE_ID_R;
     uint8_t MSG_ID;
     uint8_t PAY_LEN;
-    uint8_t PAYLOAD[50];
+    uint8_t PAYLOAD[63];    // 63 bytes
 };
 
 lora_packet_struct get_rts(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);

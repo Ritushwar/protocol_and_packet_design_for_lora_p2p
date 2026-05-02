@@ -19,39 +19,21 @@
 
 #include "lora_packet.h"
 
-// #define HEADER_SIZE 10
-// uint8_t header[HEADER_SIZE];
+const uint8_t PKT_RTS    = 0x01;
+const uint8_t PKT_CTS    = 0x02;
+const uint8_t PKT_DATA   = 0x03;
+const uint8_t PKT_ACK    = 0x04;
+const uint8_t PKT_HEADER = 0x05;
 
-// header index mapping
-// #define PKT_TYPE    0
-// #define FLAGS       1
-// #define NODE_ID_S   2
-// #define USER_ID_S   3
-// #define NODE_ID_R   4
-// #define USER_ID_R   5
-// #define MSG_ID      6
-// #define PAY_LEN     7
-// #define CRC_MSB     8
-// #define CRC_LSB     9
+const uint8_t FLAG_RTS   = 0x01;
+const uint8_t FLAG_CTS   = 0x02;
+const uint8_t FLAG_SENT  = 0x04;
+const uint8_t FLAG_DEL   = 0x08;
+const uint8_t FLAG_ERROR = 0x10;
+const uint8_t FLAG_RETRY = 0x20;
+const uint8_t FLAG_DATA  = 0x40;
+const uint8_t FLAG_ACK   = 0x80;
 
-// packets types
-#define PKT_RTS    0x01
-#define PKT_CTS    0x02
-#define PKT_DATA   0x03
-#define PKT_ACK    0x04
-#define PKT_HEADER 0x05
-
-// flags
-#define FLAG_RTS   0x01     // 0000 0001
-#define FLAG_CTS   0x02     // 0000 0010
-#define FLAG_SENT  0x04     // 0000 0100
-#define FLAG_DEL   0x08     // 0000 1000
-#define FLAG_ERROR 0x10     // 0001 0000
-#define FLAG_RETRY 0x20     // 0010 0000
-#define FLAG_DATA  0x40     // 0100 0000
-#define FLAG_ACK   0x80     // 1000 0000
-
-// 
 struct lora_packet{
     uint8_t PKT_TYPE;
     uint8_t FLAGS;
@@ -61,9 +43,10 @@ struct lora_packet{
     uint8_t NODE_ID_R;
     uint8_t MSG_ID;
     uint8_t PAY_LEN;
-    uint8_t PAYLOAD[50];
+    uint8_t PAYLOAD[56];
 };
 
+// it will return RTS packet
 lora_packet_struct get_rts(uint8_t user_id_s , uint8_t node_id_s, uint8_t user_id_r, uint8_t node_id_r, uint8_t msg_id){
     lora_packet_struct my_pkt = {0};
     my_pkt.PKT_TYPE = PKT_RTS;
@@ -77,6 +60,7 @@ lora_packet_struct get_rts(uint8_t user_id_s , uint8_t node_id_s, uint8_t user_i
     return my_pkt;
 }
 
+// it will return CTS packet
 lora_packet_struct get_cts(uint8_t user_id_s, uint8_t node_id_s, uint8_t user_id_r, uint8_t node_id_r, uint8_t msg_id){
   lora_packet_struct my_pkt = {0};
   my_pkt.PKT_TYPE = PKT_CTS;
@@ -89,6 +73,8 @@ lora_packet_struct get_cts(uint8_t user_id_s, uint8_t node_id_s, uint8_t user_id
   my_pkt.PAY_LEN = 0x00;
   return my_pkt;
 }
+
+// it will return cts packet
 lora_packet_struct get_data_pkt(uint8_t user_id_s, uint8_t node_id_s, uint8_t user_id_r, uint8_t node_id_r, uint8_t msg_id, const std::string msg){
   lora_packet_struct my_pkt = {0};
   my_pkt.PKT_TYPE = PKT_DATA;
@@ -107,6 +93,7 @@ lora_packet_struct get_data_pkt(uint8_t user_id_s, uint8_t node_id_s, uint8_t us
   return my_pkt;
 }
 
+// it will return ack packet
 lora_packet_struct get_ack(uint8_t user_id_s, uint8_t node_id_s, uint8_t user_id_r, uint8_t node_id_r, uint8_t msg_id){
   lora_packet_struct my_pkt = {0};
   my_pkt.PKT_TYPE = PKT_ACK;

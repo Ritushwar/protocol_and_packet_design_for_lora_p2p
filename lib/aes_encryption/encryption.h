@@ -6,7 +6,6 @@
 #include <string>
 
 void set_aes_key(uint8_t[16]);    // 16 bytes of key
-void encrypt_msg(std::string&);
-void decrypt_msg(std::string&);
-
+size_t encrypt_msg(uint8_t[64], size_t, uint8_t[64]);
+void decrypt_msg(uint8_t[64], size_t, uint8_t[64]);
 #endif

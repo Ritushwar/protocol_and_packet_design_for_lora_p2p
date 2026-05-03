@@ -1,13 +1,21 @@
 #include "protocol_state.h"
 
-uint8_t my_user_id = 0x00;
-uint8_t my_node_id = 0x00;
-uint8_t user_id_r = 0x00;
-uint8_t node_id_r = 0x00;
-uint8_t msg_id    = 0x00;
-uint8_t msg_id_r  = 0x00;
+uint8_t my_user_id;
+uint8_t my_node_id;
+uint8_t user_id_r;
+uint8_t node_id_r;
+uint8_t msg_id;
+uint8_t msg_id_r;
 std::string msg   = "";
-std::string msg_r = "";
+uint8_t input_buffer[64] = {0};       // sender
+uint8_t encrypted_buffer[64] = {0};   // sender
+size_t enc_len = 0;
+uint16_t crc;
+
+uint8_t received_payload[64] = {0};   // receiver
+size_t payload_len;                   // receiver
+uint16_t received_crc;                // receiver
+uint8_t decrypted_payload[64] = {0};
 
 #define TIMEOUT_MS 3000UL
 #define POST_SUCCESS_DELAY 100UL
@@ -28,7 +36,9 @@ enum ProtoState {
     SUCCESS,
     SEND_CTS,
     WAIT_DATA,  
-    SEND_ACK
+    SEND_ACK,
+    RETRY,
+    ERROR
 };
 
 static ProtoState protoState = IDLE;
@@ -37,6 +47,7 @@ static bool cts_received  = false;
 static bool ack_received  = false;
 static bool rts_received  = false;
 static bool data_received = false;
+static bool retry_received = false;
 
 static bool channel_busy = false;
 
@@ -70,37 +81,73 @@ void set_r_add(uint8_t user_id, uint8_t node_id) {
 
 void send_rts() {
     Serial.println("Sending RTS");
-    send_packet(get_rts(my_user_id, my_node_id, user_id_r, node_id_r, msg_id));
+    lora_packet_struct rts_pkt = get_rts(my_user_id, my_node_id, user_id_r, node_id_r, msg_id);
+    send_packet(rts_pkt);
 }
 
 void send_cts() {
     Serial.println("Sending CTS");
-    send_packet(get_cts(my_user_id, my_node_id, user_id_r, node_id_r, msg_id_r));
+    lora_packet_struct cts_pkt = get_cts(my_user_id, my_node_id, user_id_r, node_id_r, msg_id_r);
+    send_packet(cts_pkt);
 }
 
 void send_data() {
     Serial.println("Sending DATA");
-    send_packet(get_data_pkt(my_user_id, my_node_id, user_id_r, node_id_r, msg_id, msg));
+    lora_packet_struct data_pkt = get_data_pkt(my_user_id, my_node_id, user_id_r, node_id_r, msg_id, encrypted_buffer, enc_len, crc);
+    send_packet(data_pkt);
 }
 
 void send_ack() {
     Serial.println("Sending ACK");
-    send_packet(get_ack(my_user_id, my_node_id, user_id_r, node_id_r, msg_id_r));
+    lora_packet_struct ack_pkt = get_ack(my_user_id, my_node_id, user_id_r, node_id_r, msg_id_r);
+    send_packet(ack_pkt);
 }
 
 void serial_update(){
     if(serialIO_available() && !channel_busy && protoState == IDLE){
         msg = serialIO_read();
-        encrypt_msg(msg);
+
+        // copy plaintext
+        memcpy(input_buffer, msg.c_str(), msg.length());
+
+        enc_len = encrypt_msg(input_buffer, msg.length(), encrypted_buffer);
+
+        Serial.print("Encrypted message: ");
+        for (size_t i = 0; i < enc_len; i++) {
+            if (encrypted_buffer[i] < 0x10) Serial.print("0"); // leading zero
+            Serial.print(encrypted_buffer[i], HEX);
+            Serial.print(" ");
+        }
+        Serial.println();
+
+        crc = calc_crc_bytes(encrypted_buffer, enc_len);
+
+        serialIO_print("My msg crc: " + std::to_string(crc));
         channel_busy = true;
         protoState = SEND_RTS;
     }
 
-    if(msg_r.length() > 0){
-        serialIO_print("Received before decryption: " + msg_r);
-        decrypt_msg(msg_r);
-        serialIO_print("Received after decryption " + msg_r);
-        msg_r.clear();
+    if(payload_len > 0){
+        uint16_t calculated_crc = calc_crc_bytes(received_payload, payload_len);
+        serialIO_print("Received CRC: " + std::to_string(received_crc));
+        serialIO_print("Calculated CRC: " + std::to_string(calculated_crc));
+        if(calculated_crc != received_crc){
+            serialIO_print("Error in the received message: ");
+            protoState = ERROR;
+            payload_len = 0;
+            received_crc = 0x0000;    // reset crc
+            return;
+        }
+        serialIO_print("Received before decryption: ");
+        for (size_t i = 0; i < payload_len; i++) {
+            if (received_payload[i] < 0x10) Serial.print("0"); // leading zero
+            Serial.print(received_payload[i], HEX);
+            Serial.print(" ");
+        }
+        Serial.println();
+        decrypt_msg(received_payload, payload_len, decrypted_payload);
+        Serial.println((char*)decrypted_payload);
+        payload_len = 0;
     }
     return;
 }
@@ -108,7 +155,7 @@ void serial_update(){
 void lora_update(){
     if(!is_packet_available())  return;
 
-    int pkt_size = get_packet_size();
+    size_t pkt_size = get_packet_size();
     if(pkt_size < 8){
         Serial.print("Invalid packet size of: ");
         Serial.println(pkt_size);
@@ -124,6 +171,7 @@ void lora_update(){
     
     // check if the packet is addressed to me
     if(!is_for_me(pkt.USER_ID_R, pkt.NODE_ID_R)){
+        Serial.print("Packet is not for me "); 
         return;
     }
 
@@ -144,7 +192,11 @@ void lora_update(){
     
     case 0x03:    // DATA
         msg_id_r = pkt.MSG_ID;
-        msg_r.assign((char*)pkt.PAYLOAD, pkt.PAY_LEN);
+        payload_len = pkt.PAY_LEN;
+        memcpy(received_payload, pkt.PAYLOAD, payload_len);
+        received_crc  = (uint16_t)pkt.PAYLOAD[payload_len] << 8;
+        received_crc |= pkt.PAYLOAD[payload_len + 1];
+        serialIO_print("My received crc: " + std::to_string(received_crc));
         data_received = true;
         break;
     
@@ -152,8 +204,12 @@ void lora_update(){
         if(pkt.MSG_ID == msg_id){
             ack_received = true;
         }
-        break;;    
-    
+        break;
+
+    case 0x06:  // retry
+        if(pkt.MSG_ID == msg_id){
+            retry_received = true;
+        }
     default:
         break;
     }
@@ -203,6 +259,9 @@ void fsm_update(){
         break;
     
     case WAIT_ACK:
+        if(retry_received){
+            protoState = RETRY;
+        }
         if(ack_received){
             ack_received = false;
             protoState = SUCCESS;
@@ -221,6 +280,7 @@ void fsm_update(){
     
     case SUCCESS:
         Serial.println("Message sent successfully!");
+        received_crc = 0x0000;     // reset the crc
         msg_id++;
         success_start_ms = millis();
         reset_channel();
@@ -251,6 +311,15 @@ void fsm_update(){
         protoState = IDLE;
         break;
 
+    case RETRY:
+        if(retry_received){
+            retry_received = false;
+            protoState = SEND_DATA;
+        }
+        break;
+    
+    case ERROR:
+        protoState = WAIT_DATA;
     default:
         break;
     }

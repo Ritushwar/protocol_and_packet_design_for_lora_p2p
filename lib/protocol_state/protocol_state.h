@@ -10,6 +10,7 @@
 #include "setup_lora.h"
 #include "lora_packet.h"
 #include "encryption.h"
+#include "crc.h"
 
 extern uint8_t msg_id;
 extern uint8_t msg_id_r;

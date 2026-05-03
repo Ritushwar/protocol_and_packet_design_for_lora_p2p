@@ -25,6 +25,8 @@ extern const uint8_t PKT_CTS;
 extern const uint8_t PKT_DATA;
 extern const uint8_t PKT_ACK;
 extern const uint8_t PKT_HEADER;
+extern const uint8_t PKT_RETRY;
+extern const uint8_t PKT_ERROR;
 
 
 // flags
@@ -37,7 +39,7 @@ extern const uint8_t FLAG_DATA;
 extern const uint8_t FLAG_ACK;
 
 
-struct lora_packet_struct{
+struct __attribute__((packed)) lora_packet_struct{
     uint8_t PKT_TYPE;
     uint8_t FLAGS;
     uint8_t USER_ID_S;
@@ -47,10 +49,13 @@ struct lora_packet_struct{
     uint8_t MSG_ID;
     uint8_t PAY_LEN;
     uint8_t PAYLOAD[63];    // 63 bytes
+    uint8_t CRC_UB;         // crc upper byte
+    uint8_t CRC_LB;         // crc lower byte
 };
 
 lora_packet_struct get_rts(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
 lora_packet_struct get_cts(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-lora_packet_struct get_data_pkt(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, const std::string);
+lora_packet_struct get_data_pkt(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t *, size_t, uint16_t);
 lora_packet_struct get_ack(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+lora_packet_struct get_retry(uint8_t, uint8_t, uint8_t, uint8_t,uint8_t);
 #endif

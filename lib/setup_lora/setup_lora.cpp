@@ -73,19 +73,19 @@ std::string get_msg(){
 }
 
 // send packet over lora modules
-void send_packet(const lora_packet_struct &pkt){
+void send_packet(lora_packet_struct &pkt){
   // disable interrupt
   detachInterrupt(digitalPinToInterrupt(dio0));
   mode = TX_MODE;
   setMode(mode);
   delay(50);
 
-  size_t packet_size;
-  if(pkt.PKT_TYPE == PKT_DATA){
-    packet_size = 8 + pkt.PAY_LEN;
-  }else{
-    packet_size = 8;
-  }
+  pkt.PAYLOAD[pkt.PAY_LEN] = pkt.CRC_UB;
+  pkt.PAYLOAD[pkt.PAY_LEN + 1] = pkt.CRC_LB;
+
+  size_t packet_size = (pkt.PKT_TYPE == PKT_DATA)
+        ? 8 + pkt.PAY_LEN + 2
+        : 8;
 
   
   Serial.print("Sending PKT_TYPE=0x");
@@ -121,6 +121,8 @@ int get_packet_size(){
     setMode(mode);
     return 0;
   }
+  Serial.print("Received packet size: ");
+  Serial.println(_last_pkt_size);
   return _last_pkt_size;
 }
 

@@ -21,7 +21,7 @@ void setup_lora_communication();
 void setMode(int);
 void send_msg(std::string&);
 std::string get_msg();
-void send_packet(const lora_packet_struct&);
+void send_packet(lora_packet_struct&);
 int get_packet_size();
 lora_packet_struct get_packet(int);
 bool is_packet_available();
